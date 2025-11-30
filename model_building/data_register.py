@@ -6,7 +6,7 @@ repo_id = "shishirtiwari/tourism-project"
 repo_type = "dataset"
 
 # Initialize API client
-api = HfApi(token="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")
+api = HfApi(token=os.getenv("HF_TOKEN"))
 
 # Step 1: Check if the space exists
 try:
