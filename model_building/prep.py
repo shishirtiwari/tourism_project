@@ -1,67 +1,67 @@
-# for data manipulation
-import pandas as pd
-import sklearn
-# for creating a folder
-import os
-# for data preprocessing and pipeline creation
-from sklearn.model_selection import train_test_split
-# for converting text data in to numerical representation
-from sklearn.preprocessing import LabelEncoder
-# for hugging face space authentication to upload files
-from huggingface_hub import login, HfApi
 
-# Define constants for the dataset and output paths
+# tourism_project/model_building/prep.py
+
+import os
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from datasets import load_dataset
+from huggingface_hub import HfApi
+
+# Initialize HF API with token
 api = HfApi(token=os.getenv("HF_TOKEN"))
-DATASET_PATH = "hf://datasets/shishirtiwari/tourism-project/data/tourism.csv"
-df = pd.read_csv(DATASET_PATH)
+
+# Correct dataset repo (hyphen!)
+HF_DATASET_ID = "shishirtiwari/tourism-project"
+
+# Load dataset using HuggingFace datasets library (correct way)
+print("Downloading dataset from Hugging Face...")
+dataset = load_dataset(HF_DATASET_ID)
+
+# If your dataset is a CSV, datasets loads it under the 'train' split
+df = dataset["train"].to_pandas()
 print("Dataset loaded successfully.")
 
-# Drop the unique identifier
+# Drop ID col
 df.drop(columns=['CustomerID'], inplace=True)
 
-# Encoding the categorical 'Type' column
-label_encoder = LabelEncoder()
-# df['Type'] = label_encoder.fit_transform(df['Type'])
-df['TypeofContact'] = label_encoder.fit_transform(df['TypeofContact'])
+# Encoding categorical variables
+encoder = LabelEncoder()
 
-df['CityTier'] = label_encoder.fit_transform(df['CityTier'])
+encode_cols = [
+    "TypeofContact", "CityTier", "Occupation",
+    "Gender", "ProductPitched", "MaritalStatus",
+    "Designation"
+]
 
-df['Occupation'] = label_encoder.fit_transform(df['Occupation'])
+for col in encode_cols:
+    df[col] = encoder.fit_transform(df[col])
 
-df['Gender'] = label_encoder.fit_transform(df['Gender'])
+target_col = "ProdTaken"
 
-df['ProductPitched'] = label_encoder.fit_transform(df['ProductPitched'])
-
-df['MaritalStatus'] = label_encoder.fit_transform(df['MaritalStatus'])
-
-df['Designation'] = label_encoder.fit_transform(df['Designation'])
-
-
-
-
-target_col = 'ProdTaken'
-
-# Split into X (features) and y (target)
 X = df.drop(columns=[target_col])
 y = df[target_col]
 
-# Perform train-test split
+# Split dataset
 Xtrain, Xtest, ytrain, ytest = train_test_split(
     X, y, test_size=0.2, random_state=42
 )
 
-Xtrain.to_csv("Xtrain.csv",index=False)
-Xtest.to_csv("Xtest.csv",index=False)
-ytrain.to_csv("ytrain.csv",index=False)
-ytest.to_csv("ytest.csv",index=False)
+# Save outputs
+Xtrain.to_csv("Xtrain.csv", index=False)
+Xtest.to_csv("Xtest.csv", index=False)
+ytrain.to_csv("ytrain.csv", index=False)
+ytest.to_csv("ytest.csv", index=False)
 
-
-files = ["Xtrain.csv","Xtest.csv","ytrain.csv","ytest.csv"]
+# Upload splits to Hugging Face
+files = ["Xtrain.csv", "Xtest.csv", "ytrain.csv", "ytest.csv"]
 
 for file_path in files:
     api.upload_file(
         path_or_fileobj=file_path,
-        path_in_repo=file_path.split("/")[-1],  # just the filename
-        repo_id="shishirtiwari/tourism_project",
+        path_in_repo=file_path,
+        repo_id=HF_DATASET_ID,   # FIXED
         repo_type="dataset",
     )
+
+print("Dataset splits uploaded successfully.")
